@@ -1,16 +1,13 @@
-# 🐳 **Containerisation & Kubernetes Deployment — LLMOps Celebrity Detector**
+# ☁️ **Google Cloud Platform Setup — LLMOps Celebrity Detector**
 
-This branch introduces **containerisation** and **Kubernetes deployment** for the LLMOps Celebrity Detector.
-With this stage complete, the application can now run inside a Docker container and be deployed reliably on any Kubernetes cluster.
+This branch prepares the **Google Cloud Platform (GCP)** environment required for deploying the LLMOps Celebrity Detector.
+It covers enabling APIs, creating the GKE Autopilot cluster, configuring Artifact Registry, and generating service accounts with proper permissions.
 
-Two new files are added:
-
-* A `Dockerfile` that packages the full Flask app
-* A Kubernetes manifest (`kubernetes-deployment.yaml`) that deploys and exposes the container
+Once completed, your project becomes cloud-ready for containerisation, deployment, and CI/CD automation.
 
 ## 🗂️ **Project Structure (Updated)**
 
-Only the **new files** added in this branch are annotated.
+Only the **newly added** or cloud-specific asset is annotated.
 
 ```text
 LLMOPS-CELEBRITY-DETECTOR/
@@ -25,15 +22,13 @@ LLMOPS-CELEBRITY-DETECTOR/
 │       ├── celebrity_detector.py
 │       └── qa_engine.py
 ├── static/
-│   └── style.css
 ├── templates/
-│   └── index.html
+├── gcp-key.json                     # NEW: GCP service account key (DO NOT COMMIT)
 ├── app.py
-├── Dockerfile                        # NEW: Builds the production container image
-├── kubernetes-deployment.yaml        # NEW: Kubernetes Deployment + Service manifest
-├── llmops_celebrity_detector.egg-info/
+├── Dockerfile
+├── kubernetes-deployment.yaml
 ├── .env
-├── .gitignore
+├── .gitignore                       # Updated: gcp-key.json added to ignore list
 ├── .python-version
 ├── pyproject.toml
 ├── README.md
@@ -42,77 +37,137 @@ LLMOPS-CELEBRITY-DETECTOR/
 └── uv.lock
 ```
 
-## 🧱 **Dockerfile — Container Build Instructions**
+## 🔑 **1. Enable Required GCP APIs**
 
-The `Dockerfile` defines everything required to run the Flask application inside a container:
+In the GCP Console:
 
-* Uses a stable Python base image
-* Installs all dependencies
-* Copies the entire project structure
-* Exposes port `5000`
-* Sets the main entrypoint (`python app.py`)
+Navigation → **APIs & Services → Library**
 
-Once built, the resulting image can run on:
+Enable the following APIs:
 
-* Your local machine
-* Docker Desktop
-* Any cloud provider
-* Any Kubernetes cluster
+* Kubernetes Engine API
+* Container Registry API
+* Compute Engine API
+* Cloud Build API
+* Cloud Storage API
+* IAM API
 
-Build the image locally:
+### Kubernetes Engine API
 
-```bash
-docker build -t llmops-celebrity-detector .
+<p align="center">
+  <img src="img/gcp_setup/k8_engine_api.png" width="100%">
+</p>
+
+## 🛠️ **2. Create GKE Cluster & Artifact Registry**
+
+### Create a GKE Autopilot Cluster
+
+1. Go to the GCP Console and search for **GKE**
+2. Click **Create Cluster**
+3. Select the **Autopilot** option
+
+<p align="center">
+  <img src="img/gcp_setup/cluster_autopilot.png" width="100%">
+</p>
+
+Name the cluster:
+
+```
+llmops
 ```
 
-Run it:
+### Networking Configuration
 
-```bash
-docker run -p 5000:5000 llmops-celebrity-detector
+Inside the cluster creation flow, open the **Networking** tab and apply the recommended settings as needed.
+
+<p align="center">
+  <img src="img/gcp_setup/networking.png" width="100%">
+</p>
+
+### Create Artifact Registry
+
+1. Search for **Artifact Registry** in the GCP Console
+2. Click **Create Repository**
+3. Use the following settings:
+
+```
+Name: llmops-repo
+Format: Docker
+Region: us-central1 (Iowa)
 ```
 
-## ☸️ **kubernetes-deployment.yaml — Cluster Deployment**
+This will act as your storage for container images.
 
-This manifest contains **two Kubernetes resources**:
+## 🔐 **3. Create a Service Account & Assign Permissions**
 
-* A **Deployment** that runs the container inside the cluster
-* A **LoadBalancer Service** that exposes the app externally
+Navigate to:
 
-The `---` between the resources is required because Kubernetes treats them as separate documents.
+**IAM & Admin → Service Accounts**
 
-Apply it to your cluster:
+Create a new service account:
 
-```bash
-kubectl apply -f kubernetes-deployment.yaml
+```
+Name: celebrity
 ```
 
-Check that it deployed correctly:
+### Assign Roles
 
-```bash
-kubectl get pods
-kubectl get svc
+Grant the following roles:
+
+* Storage Object Admin
+* Storage Object Viewer
+* Owner
+* Artifact Registry Admin
+* Artifact Registry Writer
+
+### Create and Download JSON Key
+
+1. Click the **three vertical dots (Actions)**
+2. Select **Manage keys**
+3. Click **Add key → Create new key**
+4. Download the `.json` file
+
+Place it in the project root:
+
+```
+gcp-key.json
 ```
 
-Once the LoadBalancer provisions an external IP, the app becomes available publicly.
+Add to `.gitignore`:
 
-## 🚀 **End-to-End Flow Enabled by This Branch**
+```
+gcp-key.json
+```
 
-With this branch complete, you can now:
+This prevents the key from ever being pushed to GitHub.
 
-1. Build a Docker image for the system
-2. Push it to a registry (DockerHub, GCP Artifact Registry, etc.)
-3. Deploy it to Kubernetes
-4. Access the application from an external IP
+## 📦 **What This Branch Enables**
 
-This marks the transition from a **local development app** to a **cloud-deployable service**.
+After completing this branch you now have:
+
+* A fully configured GCP project
+* All required APIs enabled
+* A production-ready GKE Autopilot cluster (`llmops`)
+* A Docker Artifact Registry (`llmops-repo`)
+* A secure service account for deployments and CI/CD
+* A JSON key allowing controlled authenticated access
+
+This creates the foundation for:
+
+* Docker build and push stages
+* GitHub Actions or CircleCI pipelines
+* Kubernetes deployments
+* End-to-end MLOps infrastructure
+
+## 🧩 **Integration Notes**
+
+| Component         | Role                                                 |
+| ----------------- | ---------------------------------------------------- |
+| `gcp-key.json`    | Authenticates container pushes & cluster deployments |
+| GKE Autopilot     | Runs your Flask/LLM app inside managed Kubernetes    |
+| Artifact Registry | Stores Docker images for deployment                  |
+| Enabled APIs      | Unlock GKE, storage, IAM, build automation           |
 
 ## ✅ **In Summary**
 
-This branch adds the full deployment backbone for the LLMOps Celebrity Detector:
-
-* A reproducible Docker image
-* A Kubernetes manifest ready for production
-* Simple deployment commands
-* A clean separation between build (Dockerfile) and runtime orchestration (K8s)
-
-Your app is now fully containerised and cloud-deployable.
+This branch establishes all essential GCP infrastructure needed for the LLMOps Celebrity Detector.
