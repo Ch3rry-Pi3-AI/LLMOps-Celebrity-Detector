@@ -88,7 +88,6 @@ class CelebrityDetector:
                                 "- **Profession**:\n"
                                 "- **Nationality**:\n"
                                 "- **Famous For**:\n"
-                                "- **Top Achievements**:\n\n"
                                 "If unknown, return \"Unknown\"."
                             )
                         },
