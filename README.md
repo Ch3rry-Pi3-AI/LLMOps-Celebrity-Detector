@@ -1,20 +1,23 @@
-# 🌐 **Flask Application Layer — LLMOps Celebrity Detector**
+# 🐳 **Containerisation & Kubernetes Deployment — LLMOps Celebrity Detector**
 
-This branch introduces the **full Flask application layer** for the LLMOps Celebrity Detector.
-It connects all previously built components — image preprocessing, celebrity recognition, and Q&A — into a complete, interactive web application.
+This branch introduces **containerisation** and **Kubernetes deployment** for the LLMOps Celebrity Detector.
+With this stage complete, the application can now run inside a Docker container and be deployed reliably on any Kubernetes cluster.
 
-This is the first branch where users can run the project end-to-end through a browser interface.
+Two new files are added:
+
+* A `Dockerfile` that packages the full Flask app
+* A Kubernetes manifest (`kubernetes-deployment.yaml`) that deploys and exposes the container
 
 ## 🗂️ **Project Structure (Updated)**
 
-Only the **new** files introduced in this branch are annotated.
+Only the **new files** added in this branch are annotated.
 
 ```text
 LLMOPS-CELEBRITY-DETECTOR/
 ├── .circleci/
 ├── .venv/
 ├── app/
-│   ├── __init__.py                    # NEW: Flask application factory (app setup & blueprint registration)
+│   ├── __init__.py
 │   ├── routes.py
 │   └── utils/
 │       ├── __init__.py
@@ -22,10 +25,12 @@ LLMOPS-CELEBRITY-DETECTOR/
 │       ├── celebrity_detector.py
 │       └── qa_engine.py
 ├── static/
-│   └── style.css                      # NEW: Custom CSS (animations, glow effects, transitions)
+│   └── style.css
 ├── templates/
-│   └── index.html                     # NEW: Main UI template for uploads, results & Q&A
-├── app.py                             # NEW: Root application entrypoint (runserver)
+│   └── index.html
+├── app.py
+├── Dockerfile                        # NEW: Builds the production container image
+├── kubernetes-deployment.yaml        # NEW: Kubernetes Deployment + Service manifest
 ├── llmops_celebrity_detector.egg-info/
 ├── .env
 ├── .gitignore
@@ -37,128 +42,77 @@ LLMOPS-CELEBRITY-DETECTOR/
 └── uv.lock
 ```
 
-## 🧠 **What This Branch Adds**
+## 🧱 **Dockerfile — Container Build Instructions**
 
-### `app.py` (root entrypoint)
+The `Dockerfile` defines everything required to run the Flask application inside a container:
 
-A clean application launcher that:
+* Uses a stable Python base image
+* Installs all dependencies
+* Copies the entire project structure
+* Exposes port `5000`
+* Sets the main entrypoint (`python app.py`)
 
-* Loads environment variables
-* Calls `create_app()` to initialise Flask
-* Runs the app with debugging enabled
-* Exposes the server on `0.0.0.0:5000`
+Once built, the resulting image can run on:
 
-This is now the main command for starting the project:
+* Your local machine
+* Docker Desktop
+* Any cloud provider
+* Any Kubernetes cluster
 
-```bash
-python app.py
-```
-
-### `app/__init__.py` (Flask application factory)
-
-Creates and configures the Flask app:
-
-* Loads environment variables
-* Registers template directory
-* Sets secret key
-* Configures POST/request size limits
-* Registers the `main` blueprint
-
-This ensures the project remains modular and scalable.
-
-### `templates/index.html`
-
-The main UI for the entire system:
-
-* Image upload form
-* Base64 rendering of annotated detection images
-* Parsed celebrity information (name, profession, nationality, etc.)
-* Follow-up Q&A input
-* Animated and responsive layout powered by TailwindCSS
-* Custom glow, fade, and hover effects
-
-### `static/style.css`
-
-The custom styling layer for the front-end:
-
-* Solid black background
-* Neon rose glowing title
-* Button + image hover transitions
-* Gradient “answer box”
-* Smooth fade-in animations
-* Visual polish on top of TailwindCSS
-
-## ✨ **Key Features of This Branch**
-
-* Full web app now runs end-to-end
-* Tight connection between UI, preprocessing, and reasoning
-* Clean separation of responsibilities:
-
-  * `app.py` → entrypoint
-  * `__init__.py` → configuration
-  * `routes.py` → business logic
-  * `index.html` → rendering
-  * `style.css` → visual presentation
-* All components integrated into a functional workflow
-* A polished, modern UI with animation and glow effects
-
-## ⚙️ **Environment & Dependencies**
-
-No new Python dependencies beyond what the earlier branch required.
-
-Ensure:
-
-```text
-GROQ_API_KEY=""
-SECRET_KEY=""
-```
-
-Install dependencies (if not yet installed):
+Build the image locally:
 
 ```bash
-uv pip install -r requirements.txt
-uv lock
+docker build -t llmops-celebrity-detector .
 ```
 
-## 📥 **Running the Application**
-
-From the project root:
+Run it:
 
 ```bash
-python app.py
+docker run -p 5000:5000 llmops-celebrity-detector
 ```
 
-Then open:
+## ☸️ **kubernetes-deployment.yaml — Cluster Deployment**
 
+This manifest contains **two Kubernetes resources**:
+
+* A **Deployment** that runs the container inside the cluster
+* A **LoadBalancer Service** that exposes the app externally
+
+The `---` between the resources is required because Kubernetes treats them as separate documents.
+
+Apply it to your cluster:
+
+```bash
+kubectl apply -f kubernetes-deployment.yaml
 ```
-http://localhost:5000
+
+Check that it deployed correctly:
+
+```bash
+kubectl get pods
+kubectl get svc
 ```
 
-You can now:
+Once the LoadBalancer provisions an external IP, the app becomes available publicly.
 
-1. Upload an image
-2. See the detected face + LLM identification
-3. Ask follow-up questions
-4. View the generated responses
+## 🚀 **End-to-End Flow Enabled by This Branch**
 
-## 🧩 **Integration Notes**
+With this branch complete, you can now:
 
-| Component     | Role                                                   |
-| ------------- | ------------------------------------------------------ |
-| `app.py`      | Launches the Flask server.                             |
-| `__init__.py` | Creates & configures the Flask application.            |
-| `routes.py`   | Handles uploads, recognition, Q&A, and view rendering. |
-| `index.html`  | Renders the full UI.                                   |
-| `style.css`   | Provides animations, glow effects, and UI polish.      |
+1. Build a Docker image for the system
+2. Push it to a registry (DockerHub, GCP Artifact Registry, etc.)
+3. Deploy it to Kubernetes
+4. Access the application from an external IP
+
+This marks the transition from a **local development app** to a **cloud-deployable service**.
 
 ## ✅ **In Summary**
 
-This branch delivers the **complete Flask application layer**, allowing the entire LLMOps Celebrity Detector to run interactively in a browser.
+This branch adds the full deployment backbone for the LLMOps Celebrity Detector:
 
-You now have:
+* A reproducible Docker image
+* A Kubernetes manifest ready for production
+* Simple deployment commands
+* A clean separation between build (Dockerfile) and runtime orchestration (K8s)
 
-* A full working web interface
-* Centralised app configuration
-* Clean blueprint-based routing
-* Responsive, animated front-end styling
-* A polished user experience
+Your app is now fully containerised and cloud-deployable.
