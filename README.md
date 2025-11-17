@@ -1,155 +1,76 @@
-# ☁️ **CircleCI + GKE Deployment Setup — LLMOps Celebrity Detector**
+# 🎬 **LLMOps Celebrity Detector — Project Overview**
 
-This branch introduces full CI/CD integration for the LLMOps Celebrity Detector.
-You will encode your GCP service account key, configure CircleCI, link your GitHub repository, set environment variables, and prepare your GKE cluster to receive deployments.
+This repository presents a full **LLMOps workflow** for a real-time **celebrity recognition and Q&A system**, powered by computer vision and Large Language Models.
+The application allows users to upload an image, detect the largest face, identify the celebrity using Groq’s multimodal model, and ask follow-up questions — all wrapped inside a Flask web interface and deployed via Kubernetes with a fully automated CI/CD pipeline on GCP + CircleCI.
 
-Once complete, every push to GitHub will automatically:
-• Build your Docker image
-• Push it to Artifact Registry
-• Deploy it to your GKE Autopilot cluster
+<p align="center">
+  <img src="img/flask/flask_app1.gif" alt="Celebrity Detector Demo 1" width="100%">
+</p>
 
-This enables a fully automated MLOps deployment pipeline.
+<p align="center">
+  <img src="img/flask/flask_app2.gif" alt="Celebrity Detector Demo 2" width="100%">
+</p>
 
-## 🗂️ **Project Structure (Updated)**
+## 🧩 **Grouped Stages**
 
-Only the new files for this branch are annotated.
+|    #   | Stage                           | Description                                                                                                                                     |
+| :----: | :------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **00** | **Project Setup**               | Established the initial repository structure, module packaging (`setup.py`), environment files, virtual environment, and base utilities folder. |
+| **01** | **Image Handler**               | Implemented image decoding, preprocessing, grayscale conversion, OpenCV Haar-cascade face detection, and annotated image output.                |
+| **02** | **Celebrity Detector**          | Added the multimodal Groq-powered celebrity recognition module (base64 encoding, structured LLM output, automatic name extraction).             |
+| **03** | **Q&A Engine**                  | Developed follow-up question answering using the celebrity’s name and Groq text-based LLM responses.                                            |
+| **04** | **Routes (Flask Logic)**        | Implemented the routing layer that connects image uploads, recognition logic, Q&A, and HTML template rendering.                                 |
+| **05** | **Flask Application**           | Created the full web application (templates, CSS, routes, blueprint registration, and `app.py` entrypoint).                                     |
+| **06** | **Dockerfile & Kubernetes**     | Authored the Dockerfile, added the Kubernetes Deployment manifest, and prepared the container for cloud deployment.                             |
+| **07** | **Google Cloud Platform Setup** | Enabled APIs, created Artifact Registry, provisioned GKE Autopilot cluster, configured IAM roles, and generated the service account key.        |
+| **08** | **CircleCI Pipeline**           | Built a fully automated CI/CD pipeline: Docker build → push to Artifact Registry → rollout deployment to GKE via `kubectl`.                     |
+
+## 🗂️ **Project Structure**
 
 ```text
 LLMOPS-CELEBRITY-DETECTOR/
-├── .circleci/
-│   └── config.yml                 # NEW: CircleCI build & deploy pipeline
-├── .venv/
-├── app/
-│   ├── __init__.py
-│   ├── routes.py
-│   └── utils/
+├── app.py                           # Flask application entrypoint
+├── Dockerfile                       # Container build instructions
+├── kubernetes-deployment.yaml       # Kubernetes deployment manifest
+├── .circleci/                       # CircleCI CI/CD pipeline config
+│   └── config.yml
+├── app/                             # Main application package
+│   ├── __init__.py                  # Flask app factory + config
+│   ├── routes.py                    # Image upload & Q&A routes
+│   └── utils/                       # Core logic modules
 │       ├── __init__.py
-│       ├── image_handler.py
-│       ├── celebrity_detector.py
-│       └── qa_engine.py
-├── static/
-├── templates/
-├── gcp-key.json                   # NEW: Raw GCP service account key (DO NOT COMMIT)
-├── .env
-├── .gitignore                     # Updated: now ignores gcp-key.json
-├── .python-version
-├── Dockerfile
-├── kubernetes-deployment.yaml
-├── app.py
-├── pyproject.toml
-├── README.md
-├── requirements.txt
-├── setup.py
-└── uv.lock
+│       ├── image_handler.py         # Preprocessing & face detection
+│       ├── celebrity_detector.py    # Groq multimodal celebrity ID
+│       └── qa_engine.py             # Follow-up question answering
+├── templates/                       # HTML templates (Flask views)
+│   └── index.html
+├── static/                          # CSS, animations, and styling
+│   └── style.css
+├── img/                             # GIF demos + documentation images
+│   └── flask/                       # Flask GIFs used in README
+├── gcp-key.json                     # GCP service account key (ignored)
+├── .gitignore                       # Ignore rules incl. gcp-key.json
+├── .env                             # Environment variables
+├── .python-version                  # Python version pin
+├── requirements.txt                 # Runtime Python dependencies
+├── pyproject.toml                   # Project metadata + build system
+├── setup.py                         # Editable installation config
+└── uv.lock                          # Locked dependency versions
 ```
 
-## 🔐 Convert `gcp-key.json` to Base64
+## 🚀 **Summary**
 
-CircleCI requires the GCP key to be stored as Base64.
-Run this command in your terminal:
+The **LLMOps Celebrity Detector** demonstrates how vision, language models, and production-grade deployment can be combined into a cohesive cloud-native pipeline.
 
-```bash
-cat gcp-key.json | base64 -w 0
-```
+This project brings together:
 
-Copy the output.
-This single-line Base64-encoded string will be used in CircleCI as `GCLOUD_SERVICE_KEY`.
+* OpenCV-based image processing with robust face detection
+* Groq’s multimodal LLM for celebrity recognition
+* A Q&A engine for downstream conversational reasoning
+* A Flask web interface with Tailwind-styled UI
+* Docker containerisation for reliable builds
+* Kubernetes manifests for scalable deployment
+* GCP services (Artifact Registry + GKE Autopilot)
+* A fully automated CI/CD pipeline powered by CircleCI
 
-## ⚙️ Set Up the CircleCI Configuration
-
-Create a folder and config file in your project root:
-
-```
-.circleci/config.yml
-```
-
-Copy the pipeline configuration you were given.
-Commit the file and push it to GitHub so CircleCI can detect it.
-
-### Create the CircleCI Project
-
-1. Log into CircleCI (Google login is fine).
-2. Create a new project.
-
-<p align="center">
-  <img src="img/circleci/create_project.png" width="100%">
-</p>
-
-3. Choose **Build, test, and deploy your software application**.
-4. Name it **LLMOps**.
-5. Connect CircleCI to GitHub and select your repository:
-
-```
-LLMOps-Celebrity-Detector
-```
-
-Make sure `.circleci/config.yml` is already pushed or CircleCI will not detect the pipeline.
-
-<p align="center">
-  <img src="img/circleci/config.png" width="100%">
-</p>
-
-### Set CircleCI Environment Variables
-
-Navigate to:
-
-**Project → Settings → Environment Variables**
-
-Add the following:
-
-| Variable                | Value                 |
-| ----------------------- | --------------------- |
-| `GCLOUD_SERVICE_KEY`    | Your Base64 GCP key   |
-| `GOOGLE_PROJECT_ID`     | Your GCP project ID   |
-| `GKE_CLUSTER`           | Your GKE cluster name |
-| `GOOGLE_COMPUTE_REGION` | Your compute region   |
-
-After saving these, CircleCI is ready to authenticate to Google Cloud.
-
-### Trigger the Pipeline
-
-Make any push to the GitHub repo and CircleCI will automatically start your pipeline.
-
-<p align="center">
-  <img src="img/circleci/pipeline_run_start.png" width="100%">
-</p>
-
-## 🔑 Set Up LLMOps Secrets in GKE
-
-Access your GKE cluster via the console:
-
-1. Open GKE Console
-2. Go to Workloads
-3. Select your workload
-4. Open the built-in kubectl terminal
-
-### Authenticate kubectl to your cluster
-
-Run:
-
-```bash
-gcloud container clusters get-credentials llmops \
---region us-central1 \
---project sacred-garden-474511-b9
-```
-
-### Create the Kubernetes secret for your LLM API key
-
-```bash
-kubectl create secret generic llmops-secrets \
---from-literal=GROQ_API_KEY="your_actual_groq_api_key"
-```
-
-Your Kubernetes deployment file will reference this secret for secure access.
-
-## ✅ In Summary
-
-This branch adds:
-
-• The full CircleCI pipeline (`.circleci/config.yml`)
-• The GCP key (stored locally, ignored in Git)
-• CircleCI environment variable configuration
-• GKE secret creation
-• GitHub-triggered automated deployments
-
-Your deployment workflow is now automated end-to-end.
+From a single uploaded image to a fully automated cloud deployment, the system forms a complete **LLMOps workflow**, showcasing modern vision+LLM integration and cloud orchestration.
