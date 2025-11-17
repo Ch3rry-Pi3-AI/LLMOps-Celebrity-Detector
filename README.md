@@ -128,9 +128,9 @@ Access your GKE cluster via the console:
 Run:
 
 ```bash
-gcloud container clusters get-credentials llmops-cluster1 \
+gcloud container clusters get-credentials llmops \
 --region us-central1 \
---project gen-lang-client-0729539659
+--project sacred-garden-474511-b9
 ```
 
 ### Create the Kubernetes secret for your LLM API key
