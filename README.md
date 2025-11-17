@@ -1,9 +1,11 @@
-# 💬 **Celebrity Q&A Module — LLMOps Celebrity Detector**
+# 🌐 **Web Routing Layer — LLMOps Celebrity Detector**
 
-This branch introduces the **Q&A reasoning layer** for the LLMOps Celebrity Detector.
-It adds a dedicated utility for asking follow-up questions about a recognised celebrity using the Groq LLM API.
+This branch introduces the first **application-layer routing** for the LLMOps Celebrity Detector.
+It adds a Flask route handler that ties together the entire workflow:
 
-With this module, the system now supports a full conversational step after identification, enabling richer interactions and deeper insights.
+**image → face detection → celebrity identification → follow-up Q&A**
+
+This creates the foundation for the project’s interactive web interface and enables users to upload images, view results, and ask questions in a single unified page.
 
 ## 🗂️ **Project Structure (Updated)**
 
@@ -15,16 +17,17 @@ LLMOPS-CELEBRITY-DETECTOR/
 ├── .venv/
 ├── app/
 │   ├── __init__.py
+│   ├── routes.py                         # NEW: Main Flask routes for image upload + Q&A
 │   └── utils/
 │       ├── __init__.py
 │       ├── image_handler.py
 │       ├── celebrity_detector.py
-│       └── qa_engine.py                  # NEW: LLM-powered Q&A engine for celebrity questions
+│       └── qa_engine.py
 ├── llmops_celebrity_detector.egg-info/
 ├── static/
 ├── templates/
 ├── .env
-├── .gitignore/
+├── .gitignore
 ├── .python-version
 ├── pyproject.toml
 ├── README.md
@@ -35,78 +38,90 @@ LLMOPS-CELEBRITY-DETECTOR/
 
 ## 🧠 **What This Branch Adds**
 
-### `qa_engine.py`
+### `routes.py`
 
-A clean, type-hinted, fully documented utility class that enables:
+A fully formatted and structured Flask routing layer that:
 
-* Asking natural-language questions about a specific celebrity
-* Generating concise, accurate answers using the Groq LLM API
-* Automatic prompt construction using the celebrity’s name
-* Graceful fallback messaging if the API request fails
+* Accepts uploaded images via POST
+* Runs full preprocessing through `process_image()`
+* Identifies the detected face using `CelebrityDetector`
+* Encodes annotated images as base64 for display
+* Handles user-submitted follow-up questions
+* Pipes Q&A requests to `QAEngine`
+* Renders results cleanly via `index.html`
 
-This module connects directly with the output of `celebrity_detector.py`, forming the **celebrity → facts → Q&A** workflow.
+This file acts as the central controller that orchestrates all utilities and drives the application flow.
 
 ### Key Features
 
-* Simple `ask_about_celebrity()` interface
-* Injects celebrity name dynamically into the prompt
-* Uses the same model as the detection module for consistency
-* Seamlessly integrates into future routes or interfaces
+* Clean separation of GET and POST handling
+* Intuitive flow for both image and question submission
+* Reuse of instantiated utilities (no repeated initialisation)
+* Ready for integration with the UI templates
 
 ## ⚙️ **Environment & Dependencies**
 
-This branch requires:
+This branch introduces **no new dependencies**.
 
-* `requests` (already in your project)
-* A valid Groq API key set in `.env`:
+Requirements remain:
+
+* Flask
+* OpenCV
+* Requests
+* A valid Groq API key:
 
 ```text
 GROQ_API_KEY=""
 ```
 
-Install dependencies:
+Install dependencies if needed:
 
 ```bash
 uv pip install -r requirements.txt
 uv lock
 ```
 
-## 📥 **Using the New Utility**
+## 📥 **Using the New Route**
 
-Import and create an instance:
-
-```python
-from app.utils.qa_engine import QAEngine
-
-qa = QAEngine()
-```
-
-Ask a question:
+When the Flask app is initialised, register the blueprint:
 
 ```python
-answer = qa.ask_about_celebrity("Tom Cruise", "What awards has he won?")
+from app.routes import main
+app.register_blueprint(main)
 ```
 
-Return value:
+The route behaves as follows:
 
-* `answer` → A concise LLM-generated response, or a fallback message.
+### 1. User uploads an image
+
+* System detects face
+* Identifies celebrity
+* Displays annotated image
+* Shows structured recognition output
+
+### 2. User asks a question
+
+* Q&A engine is triggered
+* Answer appears beneath the result
 
 ## 🧩 **Integration Notes**
 
 | Component               | Role                                                         |
 | ----------------------- | ------------------------------------------------------------ |
-| `qa_engine.py`          | Handles follow-up question answering via Groq LLM API.       |
-| `celebrity_detector.py` | Supplies the celebrity name used for Q&A prompts.            |
-| `app/utils/`            | Shared helper layer for core reasoning and preprocessing.    |
-| `app/`                  | Will later host routes, views, and interactive Q&A features. |
+| `routes.py`             | Application controller for uploads, identification, and Q&A. |
+| `image_handler.py`      | Preprocesses images and detects faces.                       |
+| `celebrity_detector.py` | Performs LLM-powered celebrity identification.               |
+| `qa_engine.py`          | Handles follow-up Q&A about recognised celebrities.          |
+| `templates/`            | Renders the resulting information to the user.               |
 
 ## ✅ **In Summary**
 
-This branch introduces the **first conversational reasoning module** for the LLMOps Celebrity Detector:
+This branch introduces the **application orchestration layer**, enabling:
 
-* Adds a complete LLM-driven Q&A engine
-* Extends the pipeline beyond identification into interactive dialogue
-* Provides clean modular design for future UI and API layers
+* User interaction through the browser
+* Full processing pipeline execution
+* Dynamic Q&A based on detected celebrities
+* Smooth integration between utilities and UI
 
-The project can now support a full flow:
-**image → face detection → celebrity identification → follow-up Q&A**.
+With routing now in place, the project is ready for the next stage:
+**HTML template development and front-end interaction.**
