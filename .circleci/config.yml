@@ -1,73 +1,110 @@
+# ======================================================================
+# CircleCI Configuration for LLMOps Celebrity Detector
+# ======================================================================
+# This pipeline:
+# 1. Checks out the repository
+# 2. Builds and pushes a Docker image to Artifact Registry
+# 3. Deploys the application to a GKE Autopilot cluster
+#
+# Requires environment variables (set in CircleCI project settings):
+#   - GCLOUD_SERVICE_KEY        (Base64-encoded GCP service account key, single line)
+#   - GOOGLE_PROJECT_ID
+#   - GOOGLE_COMPUTE_REGION
+#   - GKE_CLUSTER
+# ======================================================================
+
 version: 2.1
 
+# ======================================================================
+# Executors
+# ======================================================================
 executors:
   docker-executor:
     docker:
-      - image: google/cloud-sdk:latest
+      - image: google/cloud-sdk:latest     # Includes gcloud, kubectl, docker auth helpers
     working_directory: ~/repo
 
+
+# ======================================================================
+# Jobs
+# ======================================================================
+
+# ------------------------------
+# 1. Checkout code
+# ------------------------------
 jobs:
   checkout_code:
     executor: docker-executor
     steps:
       - checkout
 
+
+  # ------------------------------
+  # 2. Build & Push Docker Image
+  # ------------------------------
   build_docker_image:
     executor: docker-executor
     steps:
       - checkout
+
+      # Provides Docker engine inside CircleCI environment
       - setup_remote_docker
 
+      # Authenticate with Google Cloud using base64-encoded service account key
       - run:
           name: Authenticate with Google Cloud
           command: |
-            if ! echo "$GCLOUD_SERVICE_KEY" | base64 --decode > gcp-key.json 2>/dev/null; then
-                echo "$GCLOUD_SERVICE_KEY" > gcp-key.json
-            fi
-
+            echo "$GCLOUD_SERVICE_KEY" | tr -d '\n' | base64 --decode > gcp-key.json
             gcloud auth activate-service-account --key-file=gcp-key.json
-            gcloud config set project "$GOOGLE_PROJECT_ID"
+            gcloud auth configure-docker us-central1-docker.pkg.dev || gcloud auth configure-docker
 
-            ACCESS_TOKEN="$(gcloud auth print-access-token)"
-            echo "$ACCESS_TOKEN" | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
-
+      # Build Docker image and push to Artifact Registry
       - run:
           name: Build and Push Docker Image
           command: |
             docker build -t us-central1-docker.pkg.dev/$GOOGLE_PROJECT_ID/llmops-repo/llmops-app:latest .
             docker push us-central1-docker.pkg.dev/$GOOGLE_PROJECT_ID/llmops-repo/llmops-app:latest
 
+
+  # ------------------------------
+  # 3. Deploy to GKE Autopilot
+  # ------------------------------
   deploy_to_gke:
     executor: docker-executor
     steps:
       - checkout
       - setup_remote_docker
 
+      # Re-authenticate with Google Cloud
       - run:
           name: Authenticate with Google Cloud
           command: |
-            if ! echo "$GCLOUD_SERVICE_KEY" | base64 --decode > gcp-key.json 2>/dev/null; then
-                echo "$GCLOUD_SERVICE_KEY" > gcp-key.json
-            fi
-
+            echo "$GCLOUD_SERVICE_KEY" | tr -d '\n' | base64 --decode > gcp-key.json
             gcloud auth activate-service-account --key-file=gcp-key.json
-            gcloud config set project "$GOOGLE_PROJECT_ID"
+            gcloud auth configure-docker us-central1-docker.pkg.dev || gcloud auth configure-docker
 
+      # Configure kubectl to use the target GKE cluster
       - run:
           name: Configure GKE Access
           command: |
             gcloud container clusters get-credentials $GKE_CLUSTER \
-                --region $GOOGLE_COMPUTE_REGION \
-                --project $GOOGLE_PROJECT_ID
+              --region $GOOGLE_COMPUTE_REGION \
+              --project $GOOGLE_PROJECT_ID
 
+      # Deploy using Kubernetes manifest
       - run:
           name: Deploy to GKE
           command: |
             kubectl apply -f kubernetes-deployment.yaml --validate=false
             kubectl rollout restart deployment llmops-app
 
+
+# ======================================================================
+# Workflows
+# ======================================================================
 workflows:
   version: 2
+
   deploy_pipeline:
     jobs:
       - checkout_code
