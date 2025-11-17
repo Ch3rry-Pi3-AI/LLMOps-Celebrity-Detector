@@ -1,31 +1,32 @@
-# 🌐 **Web Routing Layer — LLMOps Celebrity Detector**
+# 🌐 **Flask Application Layer — LLMOps Celebrity Detector**
 
-This branch introduces the first **application-layer routing** for the LLMOps Celebrity Detector.
-It adds a Flask route handler that ties together the entire workflow:
+This branch introduces the **full Flask application layer** for the LLMOps Celebrity Detector.
+It connects all previously built components — image preprocessing, celebrity recognition, and Q&A — into a complete, interactive web application.
 
-**image → face detection → celebrity identification → follow-up Q&A**
-
-This creates the foundation for the project’s interactive web interface and enables users to upload images, view results, and ask questions in a single unified page.
+This is the first branch where users can run the project end-to-end through a browser interface.
 
 ## 🗂️ **Project Structure (Updated)**
 
-Only the **new** file added in this branch is annotated.
+Only the **new** files introduced in this branch are annotated.
 
 ```text
 LLMOPS-CELEBRITY-DETECTOR/
 ├── .circleci/
 ├── .venv/
 ├── app/
-│   ├── __init__.py
-│   ├── routes.py                         # NEW: Main Flask routes for image upload + Q&A
+│   ├── __init__.py                    # NEW: Flask application factory (app setup & blueprint registration)
+│   ├── routes.py
 │   └── utils/
 │       ├── __init__.py
 │       ├── image_handler.py
 │       ├── celebrity_detector.py
 │       └── qa_engine.py
-├── llmops_celebrity_detector.egg-info/
 ├── static/
+│   └── style.css                      # NEW: Custom CSS (animations, glow effects, transitions)
 ├── templates/
+│   └── index.html                     # NEW: Main UI template for uploads, results & Q&A
+├── app.py                             # NEW: Root application entrypoint (runserver)
+├── llmops_celebrity_detector.egg-info/
 ├── .env
 ├── .gitignore
 ├── .python-version
@@ -38,90 +39,126 @@ LLMOPS-CELEBRITY-DETECTOR/
 
 ## 🧠 **What This Branch Adds**
 
-### `routes.py`
+### `app.py` (root entrypoint)
 
-A fully formatted and structured Flask routing layer that:
+A clean application launcher that:
 
-* Accepts uploaded images via POST
-* Runs full preprocessing through `process_image()`
-* Identifies the detected face using `CelebrityDetector`
-* Encodes annotated images as base64 for display
-* Handles user-submitted follow-up questions
-* Pipes Q&A requests to `QAEngine`
-* Renders results cleanly via `index.html`
+* Loads environment variables
+* Calls `create_app()` to initialise Flask
+* Runs the app with debugging enabled
+* Exposes the server on `0.0.0.0:5000`
 
-This file acts as the central controller that orchestrates all utilities and drives the application flow.
+This is now the main command for starting the project:
 
-### Key Features
+```bash
+python app.py
+```
 
-* Clean separation of GET and POST handling
-* Intuitive flow for both image and question submission
-* Reuse of instantiated utilities (no repeated initialisation)
-* Ready for integration with the UI templates
+### `app/__init__.py` (Flask application factory)
+
+Creates and configures the Flask app:
+
+* Loads environment variables
+* Registers template directory
+* Sets secret key
+* Configures POST/request size limits
+* Registers the `main` blueprint
+
+This ensures the project remains modular and scalable.
+
+### `templates/index.html`
+
+The main UI for the entire system:
+
+* Image upload form
+* Base64 rendering of annotated detection images
+* Parsed celebrity information (name, profession, nationality, etc.)
+* Follow-up Q&A input
+* Animated and responsive layout powered by TailwindCSS
+* Custom glow, fade, and hover effects
+
+### `static/style.css`
+
+The custom styling layer for the front-end:
+
+* Solid black background
+* Neon rose glowing title
+* Button + image hover transitions
+* Gradient “answer box”
+* Smooth fade-in animations
+* Visual polish on top of TailwindCSS
+
+## ✨ **Key Features of This Branch**
+
+* Full web app now runs end-to-end
+* Tight connection between UI, preprocessing, and reasoning
+* Clean separation of responsibilities:
+
+  * `app.py` → entrypoint
+  * `__init__.py` → configuration
+  * `routes.py` → business logic
+  * `index.html` → rendering
+  * `style.css` → visual presentation
+* All components integrated into a functional workflow
+* A polished, modern UI with animation and glow effects
 
 ## ⚙️ **Environment & Dependencies**
 
-This branch introduces **no new dependencies**.
+No new Python dependencies beyond what the earlier branch required.
 
-Requirements remain:
-
-* Flask
-* OpenCV
-* Requests
-* A valid Groq API key:
+Ensure:
 
 ```text
 GROQ_API_KEY=""
+SECRET_KEY=""
 ```
 
-Install dependencies if needed:
+Install dependencies (if not yet installed):
 
 ```bash
 uv pip install -r requirements.txt
 uv lock
 ```
 
-## 📥 **Using the New Route**
+## 📥 **Running the Application**
 
-When the Flask app is initialised, register the blueprint:
+From the project root:
 
-```python
-from app.routes import main
-app.register_blueprint(main)
+```bash
+python app.py
 ```
 
-The route behaves as follows:
+Then open:
 
-### 1. User uploads an image
+```
+http://localhost:5000
+```
 
-* System detects face
-* Identifies celebrity
-* Displays annotated image
-* Shows structured recognition output
+You can now:
 
-### 2. User asks a question
-
-* Q&A engine is triggered
-* Answer appears beneath the result
+1. Upload an image
+2. See the detected face + LLM identification
+3. Ask follow-up questions
+4. View the generated responses
 
 ## 🧩 **Integration Notes**
 
-| Component               | Role                                                         |
-| ----------------------- | ------------------------------------------------------------ |
-| `routes.py`             | Application controller for uploads, identification, and Q&A. |
-| `image_handler.py`      | Preprocesses images and detects faces.                       |
-| `celebrity_detector.py` | Performs LLM-powered celebrity identification.               |
-| `qa_engine.py`          | Handles follow-up Q&A about recognised celebrities.          |
-| `templates/`            | Renders the resulting information to the user.               |
+| Component     | Role                                                   |
+| ------------- | ------------------------------------------------------ |
+| `app.py`      | Launches the Flask server.                             |
+| `__init__.py` | Creates & configures the Flask application.            |
+| `routes.py`   | Handles uploads, recognition, Q&A, and view rendering. |
+| `index.html`  | Renders the full UI.                                   |
+| `style.css`   | Provides animations, glow effects, and UI polish.      |
 
 ## ✅ **In Summary**
 
-This branch introduces the **application orchestration layer**, enabling:
+This branch delivers the **complete Flask application layer**, allowing the entire LLMOps Celebrity Detector to run interactively in a browser.
 
-* User interaction through the browser
-* Full processing pipeline execution
-* Dynamic Q&A based on detected celebrities
-* Smooth integration between utilities and UI
+You now have:
 
-With routing now in place, the project is ready for the next stage:
-**HTML template development and front-end interaction.**
+* A full working web interface
+* Centralised app configuration
+* Clean blueprint-based routing
+* Responsive, animated front-end styling
+* A polished user experience

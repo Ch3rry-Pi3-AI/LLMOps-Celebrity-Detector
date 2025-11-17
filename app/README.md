@@ -20,25 +20,37 @@ app/
 
 ## 🧩 **Components**
 
+### `__init__.py`
+
+Implements the Flask **application factory**, responsible for:
+
+* Loading environment variables
+* Locating and configuring the template directory
+* Setting secret keys and request-size limits
+* Registering blueprints (including the main route handler)
+* Returning a fully initialised Flask app
+
+This file defines how the entire web application is constructed and ensures a clean, scalable architecture.
+
 ### `routes.py`
 
-Handles web routes for the application, including:
+Handles the primary web routes for the project, including:
 
 * Uploading images
 * Running face detection
 * Performing celebrity identification
 * Sending follow-up questions to the Q&A engine
-* Rendering results in the HTML template
+* Rendering results via the HTML template
 
 ### `utils/`
 
-Contains core helper modules powering the application:
+Contains helper modules powering the application:
 
 * `image_handler.py` — Image decoding, preprocessing, and face detection
 * `celebrity_detector.py` — LLM-powered celebrity identification
 * `qa_engine.py` — Answers follow-up questions about recognised celebrities
 
-Each module is independently usable and designed to integrate seamlessly into the routing layer.
+Each utility is independently usable and designed to integrate seamlessly into the routing layer.
 
 ## 🚀 **Purpose of the `app/` Layer**
 
@@ -48,19 +60,25 @@ The `app/` folder acts as the glue that connects:
 * User uploads
 * Utility functions
 * LLM reasoning modules
-* Future endpoints and orchestration logic
+* Future API endpoints and interfaces
 
-It ensures the project grows in an organised, modular, and scalable way.
+It ensures the project evolves in a structured, modular, and scalable way.
 
 ## ✔️ **Usage Example**
 
-From the project root, the application is launched through your Flask entrypoint (created in a later branch), with logic delegated to:
+From the project root, the application runs through the Flask entrypoint:
+
+```python
+from app import create_app
+```
+
+Routes are registered automatically through the application factory:
 
 ```python
 from app.routes import main
 ```
 
-Utilities are imported cleanly thanks to package structure:
+Utility modules are imported cleanly:
 
 ```python
 from app.utils.celebrity_detector import CelebrityDetector
