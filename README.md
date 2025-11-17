@@ -1,13 +1,13 @@
-# 🌟 **Celebrity Detection Module — LLMOps Celebrity Detector**
+# 💬 **Celebrity Q&A Module — LLMOps Celebrity Detector**
 
-This branch introduces the first **LLM-powered recognition component** for the LLMOps Celebrity Detector.
-It adds a complete utility for sending images to the Groq API and retrieving structured celebrity-identification output.
+This branch introduces the **Q&A reasoning layer** for the LLMOps Celebrity Detector.
+It adds a dedicated utility for asking follow-up questions about a recognised celebrity using the Groq LLM API.
 
-This marks the beginning of the model-driven reasoning layer that will eventually power the entire recognition workflow.
+With this module, the system now supports a full conversational step after identification, enabling richer interactions and deeper insights.
 
 ## 🗂️ **Project Structure (Updated)**
 
-Only the **new** file introduced in this branch is annotated.
+Only the **new** file added in this branch is annotated.
 
 ```text
 LLMOPS-CELEBRITY-DETECTOR/
@@ -18,12 +18,13 @@ LLMOPS-CELEBRITY-DETECTOR/
 │   └── utils/
 │       ├── __init__.py
 │       ├── image_handler.py
-│       └── celebrity_detector.py          # NEW: Sends images to Groq API for celebrity identification
+│       ├── celebrity_detector.py
+│       └── qa_engine.py                  # NEW: LLM-powered Q&A engine for celebrity questions
 ├── llmops_celebrity_detector.egg-info/
 ├── static/
 ├── templates/
 ├── .env
-├── .gitignore
+├── .gitignore/
 ├── .python-version
 ├── pyproject.toml
 ├── README.md
@@ -34,40 +35,36 @@ LLMOPS-CELEBRITY-DETECTOR/
 
 ## 🧠 **What This Branch Adds**
 
-### `celebrity_detector.py`
+### `qa_engine.py`
 
-A type-hinted, fully documented utility class that handles:
+A clean, type-hinted, fully documented utility class that enables:
 
-* Base64 encoding of image bytes
-* Sending structured multimodal prompts to the Groq LLM API
-* Parsing the model’s structured response
-* Extracting the **Full Name** field automatically
-* Providing a fallback value (“Unknown”) when identification fails
+* Asking natural-language questions about a specific celebrity
+* Generating concise, accurate answers using the Groq LLM API
+* Automatic prompt construction using the celebrity’s name
+* Graceful fallback messaging if the API request fails
 
-This module is designed to integrate directly with `image_handler.py` once the full face-to-celebrity pipeline is constructed.
+This module connects directly with the output of `celebrity_detector.py`, forming the **celebrity → facts → Q&A** workflow.
 
 ### Key Features
 
-* Straightforward API usage via the `identify()` method
-* Clean structured response format
-* Automatic extraction of name via `extract_name()`
-* Strict separation of API communication from preprocessing logic
-* Ready for integration with web routes or pipelines
+* Simple `ask_about_celebrity()` interface
+* Injects celebrity name dynamically into the prompt
+* Uses the same model as the detection module for consistency
+* Seamlessly integrates into future routes or interfaces
 
 ## ⚙️ **Environment & Dependencies**
 
 This branch requires:
 
-* `requests` (already included in your dependencies)
-* A valid Groq API key in `.env`:
+* `requests` (already in your project)
+* A valid Groq API key set in `.env`:
 
 ```text
 GROQ_API_KEY=""
 ```
 
-No additional packages are needed.
-
-Install dependencies with:
+Install dependencies:
 
 ```bash
 uv pip install -r requirements.txt
@@ -76,38 +73,40 @@ uv lock
 
 ## 📥 **Using the New Utility**
 
-Import and instantiate:
+Import and create an instance:
 
 ```python
-from app.utils.celebrity_detector import CelebrityDetector
+from app.utils.qa_engine import QAEngine
 
-detector = CelebrityDetector()
+qa = QAEngine()
 ```
 
-Send image bytes:
+Ask a question:
 
 ```python
-result, name = detector.identify(image_bytes)
+answer = qa.ask_about_celebrity("Tom Cruise", "What awards has he won?")
 ```
 
-Return values:
+Return value:
 
-* `result` → Full structured text response
-* `name` → Extracted celebrity name or `"Unknown"`
+* `answer` → A concise LLM-generated response, or a fallback message.
 
 ## 🧩 **Integration Notes**
 
-| Component               | Role                                                     |
-| ----------------------- | -------------------------------------------------------- |
-| `celebrity_detector.py` | Handles Groq API calls and structured celebrity output.  |
-| `app/utils/`            | Shared helper utilities for preprocessing and LLM calls. |
-| `app/`                  | Will later host routes, upload handlers, and UI logic.   |
+| Component               | Role                                                         |
+| ----------------------- | ------------------------------------------------------------ |
+| `qa_engine.py`          | Handles follow-up question answering via Groq LLM API.       |
+| `celebrity_detector.py` | Supplies the celebrity name used for Q&A prompts.            |
+| `app/utils/`            | Shared helper layer for core reasoning and preprocessing.    |
+| `app/`                  | Will later host routes, views, and interactive Q&A features. |
 
 ## ✅ **In Summary**
 
-This branch delivers the first **LLM reasoning module** for the LLMOps Celebrity Detector:
+This branch introduces the **first conversational reasoning module** for the LLMOps Celebrity Detector:
 
-* Adds the complete celebrity-recognition utility
-* Establishes API communication with Groq
-* Provides structured output and automatic name extraction
-* Prepares the system for full pipeline integration (image → face → celebrity)
+* Adds a complete LLM-driven Q&A engine
+* Extends the pipeline beyond identification into interactive dialogue
+* Provides clean modular design for future UI and API layers
+
+The project can now support a full flow:
+**image → face detection → celebrity identification → follow-up Q&A**.
