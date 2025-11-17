@@ -1,17 +1,23 @@
-# ☁️ **Google Cloud Platform Setup — LLMOps Celebrity Detector**
+# ☁️ **CircleCI + GKE Deployment Setup — LLMOps Celebrity Detector**
 
-This branch prepares the **Google Cloud Platform (GCP)** environment required for deploying the LLMOps Celebrity Detector.
-It covers enabling APIs, creating the GKE Autopilot cluster, configuring Artifact Registry, and generating service accounts with proper permissions.
+This branch introduces full CI/CD integration for the LLMOps Celebrity Detector.
+You will encode your GCP service account key, configure CircleCI, link your GitHub repository, set environment variables, and prepare your GKE cluster to receive deployments.
 
-Once completed, your project becomes cloud-ready for containerisation, deployment, and CI/CD automation.
+Once complete, every push to GitHub will automatically:
+• Build your Docker image
+• Push it to Artifact Registry
+• Deploy it to your GKE Autopilot cluster
+
+This enables a fully automated MLOps deployment pipeline.
 
 ## 🗂️ **Project Structure (Updated)**
 
-Only the **newly added** or cloud-specific asset is annotated.
+Only the new files for this branch are annotated.
 
 ```text
 LLMOPS-CELEBRITY-DETECTOR/
 ├── .circleci/
+│   └── config.yml                 # NEW: CircleCI build & deploy pipeline
 ├── .venv/
 ├── app/
 │   ├── __init__.py
@@ -23,13 +29,13 @@ LLMOPS-CELEBRITY-DETECTOR/
 │       └── qa_engine.py
 ├── static/
 ├── templates/
-├── gcp-key.json                     # NEW: GCP service account key (DO NOT COMMIT)
-├── app.py
+├── gcp-key.json                   # NEW: Raw GCP service account key (DO NOT COMMIT)
+├── .env
+├── .gitignore                     # Updated: now ignores gcp-key.json
+├── .python-version
 ├── Dockerfile
 ├── kubernetes-deployment.yaml
-├── .env
-├── .gitignore                       # Updated: gcp-key.json added to ignore list
-├── .python-version
+├── app.py
 ├── pyproject.toml
 ├── README.md
 ├── requirements.txt
@@ -37,137 +43,113 @@ LLMOPS-CELEBRITY-DETECTOR/
 └── uv.lock
 ```
 
-## 🔑 **1. Enable Required GCP APIs**
+## 🔐 Convert `gcp-key.json` to Base64
 
-In the GCP Console:
+CircleCI requires the GCP key to be stored as Base64.
+Run this command in your terminal:
 
-Navigation → **APIs & Services → Library**
+```bash
+cat gcp-key.json | base64 -w 0
+```
 
-Enable the following APIs:
+Copy the output.
+This single-line Base64-encoded string will be used in CircleCI as `GCLOUD_SERVICE_KEY`.
 
-* Kubernetes Engine API
-* Container Registry API
-* Compute Engine API
-* Cloud Build API
-* Cloud Storage API
-* IAM API
+## ⚙️ Set Up the CircleCI Configuration
 
-### Kubernetes Engine API
+Create a folder and config file in your project root:
+
+```
+.circleci/config.yml
+```
+
+Copy the pipeline configuration you were given.
+Commit the file and push it to GitHub so CircleCI can detect it.
+
+### Create the CircleCI Project
+
+1. Log into CircleCI (Google login is fine).
+2. Create a new project.
 
 <p align="center">
-  <img src="img/gcp_setup/k8_engine_api.png" width="100%">
+  <img src="img/circleci/create_project.png" width="100%">
 </p>
 
-## 🛠️ **2. Create GKE Cluster & Artifact Registry**
+3. Choose **Build, test, and deploy your software application**.
+4. Name it **LLMOps**.
+5. Connect CircleCI to GitHub and select your repository:
 
-### Create a GKE Autopilot Cluster
+```
+LLMOps-Celebrity-Detector
+```
 
-1. Go to the GCP Console and search for **GKE**
-2. Click **Create Cluster**
-3. Select the **Autopilot** option
+Make sure `.circleci/config.yml` is already pushed or CircleCI will not detect the pipeline.
 
 <p align="center">
-  <img src="img/gcp_setup/cluster_autopilot.png" width="100%">
+  <img src="img/circleci/config.png" width="100%">
 </p>
 
-Name the cluster:
-
-```
-llmops
-```
-
-### Networking Configuration
-
-Inside the cluster creation flow, open the **Networking** tab and apply the recommended settings as needed.
-
-<p align="center">
-  <img src="img/gcp_setup/networking.png" width="100%">
-</p>
-
-### Create Artifact Registry
-
-1. Search for **Artifact Registry** in the GCP Console
-2. Click **Create Repository**
-3. Use the following settings:
-
-```
-Name: llmops-repo
-Format: Docker
-Region: us-central1 (Iowa)
-```
-
-This will act as your storage for container images.
-
-## 🔐 **3. Create a Service Account & Assign Permissions**
+### Set CircleCI Environment Variables
 
 Navigate to:
 
-**IAM & Admin → Service Accounts**
+**Project → Settings → Environment Variables**
 
-Create a new service account:
+Add the following:
 
+| Variable                | Value                 |
+| ----------------------- | --------------------- |
+| `GCLOUD_SERVICE_KEY`    | Your Base64 GCP key   |
+| `GOOGLE_PROJECT_ID`     | Your GCP project ID   |
+| `GKE_CLUSTER`           | Your GKE cluster name |
+| `GOOGLE_COMPUTE_REGION` | Your compute region   |
+
+After saving these, CircleCI is ready to authenticate to Google Cloud.
+
+### Trigger the Pipeline
+
+Make any push to the GitHub repo and CircleCI will automatically start your pipeline.
+
+<p align="center">
+  <img src="img/circleci/pipeline_run_start.png" width="100%">
+</p>
+
+## 🔑 Set Up LLMOps Secrets in GKE
+
+Access your GKE cluster via the console:
+
+1. Open GKE Console
+2. Go to Workloads
+3. Select your workload
+4. Open the built-in kubectl terminal
+
+### Authenticate kubectl to your cluster
+
+Run:
+
+```bash
+gcloud container clusters get-credentials llmops-cluster1 \
+--region us-central1 \
+--project gen-lang-client-0729539659
 ```
-Name: celebrity
+
+### Create the Kubernetes secret for your LLM API key
+
+```bash
+kubectl create secret generic llmops-secrets \
+--from-literal=GROQ_API_KEY="your_actual_groq_api_key"
 ```
 
-### Assign Roles
+Your Kubernetes deployment file will reference this secret for secure access.
 
-Grant the following roles:
+## ✅ In Summary
 
-* Storage Object Admin
-* Storage Object Viewer
-* Owner
-* Artifact Registry Admin
-* Artifact Registry Writer
+This branch adds:
 
-### Create and Download JSON Key
+• The full CircleCI pipeline (`.circleci/config.yml`)
+• The GCP key (stored locally, ignored in Git)
+• CircleCI environment variable configuration
+• GKE secret creation
+• GitHub-triggered automated deployments
 
-1. Click the **three vertical dots (Actions)**
-2. Select **Manage keys**
-3. Click **Add key → Create new key**
-4. Download the `.json` file
-
-Place it in the project root:
-
-```
-gcp-key.json
-```
-
-Add to `.gitignore`:
-
-```
-gcp-key.json
-```
-
-This prevents the key from ever being pushed to GitHub.
-
-## 📦 **What This Branch Enables**
-
-After completing this branch you now have:
-
-* A fully configured GCP project
-* All required APIs enabled
-* A production-ready GKE Autopilot cluster (`llmops`)
-* A Docker Artifact Registry (`llmops-repo`)
-* A secure service account for deployments and CI/CD
-* A JSON key allowing controlled authenticated access
-
-This creates the foundation for:
-
-* Docker build and push stages
-* GitHub Actions or CircleCI pipelines
-* Kubernetes deployments
-* End-to-end MLOps infrastructure
-
-## 🧩 **Integration Notes**
-
-| Component         | Role                                                 |
-| ----------------- | ---------------------------------------------------- |
-| `gcp-key.json`    | Authenticates container pushes & cluster deployments |
-| GKE Autopilot     | Runs your Flask/LLM app inside managed Kubernetes    |
-| Artifact Registry | Stores Docker images for deployment                  |
-| Enabled APIs      | Unlock GKE, storage, IAM, build automation           |
-
-## ✅ **In Summary**
-
-This branch establishes all essential GCP infrastructure needed for the LLMOps Celebrity Detector.
+Your deployment workflow is now automated end-to-end.
