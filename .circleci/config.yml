@@ -1,138 +1,79 @@
-# ======================================================================
-# CircleCI Configuration for LLMOps Celebrity Detector
-# ======================================================================
-# Pipeline:
-# 1. Checkout repo
-# 2. Build & push Docker image to Artifact Registry
-# 3. Deploy to GKE Autopilot
-#
-# Env vars in CircleCI project settings:
-#   - GCLOUD_SERVICE_KEY        (Base64-encoded JSON OR raw JSON)
-#   - GOOGLE_PROJECT_ID         (e.g. sacred-garden-474511-b9)
-#   - GOOGLE_COMPUTE_REGION     (e.g. us-central1)
-#   - GKE_CLUSTER               (e.g. llmops-cluster)
-# ======================================================================
-
 version: 2.1
 
-# ======================================================================
-# Executors
-# ======================================================================
 executors:
   docker-executor:
     docker:
       - image: google/cloud-sdk:latest
     working_directory: ~/repo
 
-# ======================================================================
-# Jobs
-# ======================================================================
 jobs:
-  # ------------------------------
-  # 1. Build & Push Docker Image
-  # ------------------------------
+  checkout_code:
+    executor: docker-executor
+    steps:
+      - checkout
+
   build_docker_image:
     executor: docker-executor
     steps:
       - checkout
+      - setup_remote_docker
 
-      # Give us a Docker daemon to build/push against
-      - setup_remote_docker:
-          docker_layer_caching: true
-
-      # Write service account key and authenticate with GCP + Artifact Registry
       - run:
-          name: Authenticate with Google Cloud + Artifact Registry
+          name: Authenticate with Google Cloud
           command: |
-            if [ -z "$GCLOUD_SERVICE_KEY" ]; then
-              echo "GCLOUD_SERVICE_KEY is not set in CircleCI project settings."
-              exit 1
-            fi
-
-            # Try base64 decode; if that fails, treat as raw JSON
-            if echo "$GCLOUD_SERVICE_KEY" | base64 --decode > gcp-key.json 2>/dev/null; then
-              echo "Decoded GCLOUD_SERVICE_KEY from base64."
-            else
-              echo "$GCLOUD_SERVICE_KEY" > gcp-key.json
-              echo "GCLOUD_SERVICE_KEY treated as raw JSON."
+            if ! echo "$GCLOUD_SERVICE_KEY" | base64 --decode > gcp-key.json 2>/dev/null; then
+                echo "$GCLOUD_SERVICE_KEY" > gcp-key.json
             fi
 
             gcloud auth activate-service-account --key-file=gcp-key.json
             gcloud config set project "$GOOGLE_PROJECT_ID"
-            gcloud config set compute/region "$GOOGLE_COMPUTE_REGION"
 
-            # Login Docker to Artifact Registry using gcloud access token
             ACCESS_TOKEN="$(gcloud auth print-access-token)"
-            echo "$ACCESS_TOKEN" | docker login -u oauth2accesstoken --password-stdin "https://us-central1-docker.pkg.dev"
+            echo "$ACCESS_TOKEN" | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
 
-      # Build Docker image and push to Artifact Registry
       - run:
           name: Build and Push Docker Image
           command: |
-            IMAGE_BASE="us-central1-docker.pkg.dev/${GOOGLE_PROJECT_ID}/llmops-repo/llmops-app"
-            IMAGE_TAG="${CIRCLE_SHA1:-latest}"
+            docker build -t us-central1-docker.pkg.dev/$GOOGLE_PROJECT_ID/llmops-repo/llmops-app:latest .
+            docker push us-central1-docker.pkg.dev/$GOOGLE_PROJECT_ID/llmops-repo/llmops-app:latest
 
-            echo "Building image: ${IMAGE_BASE}:${IMAGE_TAG}"
-            docker build -t "${IMAGE_BASE}:${IMAGE_TAG}" -t "${IMAGE_BASE}:latest" .
-
-            echo "Pushing image tags to Artifact Registry..."
-            docker push "${IMAGE_BASE}:${IMAGE_TAG}"
-            docker push "${IMAGE_BASE}:latest"
-
-  # ------------------------------
-  # 2. Deploy to GKE Autopilot
-  # ------------------------------
   deploy_to_gke:
     executor: docker-executor
     steps:
       - checkout
+      - setup_remote_docker
 
-      # We don't need remote Docker here, just kubectl/gcloud
       - run:
           name: Authenticate with Google Cloud
           command: |
-            if [ -z "$GCLOUD_SERVICE_KEY" ]; then
-              echo "GCLOUD_SERVICE_KEY is not set in CircleCI project settings."
-              exit 1
-            fi
-
-            # Try base64 decode; if that fails, treat as raw JSON
-            if echo "$GCLOUD_SERVICE_KEY" | base64 --decode > gcp-key.json 2>/dev/null; then
-              echo "Decoded GCLOUD_SERVICE_KEY from base64."
-            else
-              echo "$GCLOUD_SERVICE_KEY" > gcp-key.json
-              echo "GCLOUD_SERVICE_KEY treated as raw JSON."
+            if ! echo "$GCLOUD_SERVICE_KEY" | base64 --decode > gcp-key.json 2>/dev/null; then
+                echo "$GCLOUD_SERVICE_KEY" > gcp-key.json
             fi
 
             gcloud auth activate-service-account --key-file=gcp-key.json
             gcloud config set project "$GOOGLE_PROJECT_ID"
-            gcloud config set compute/region "$GOOGLE_COMPUTE_REGION"
 
       - run:
           name: Configure GKE Access
           command: |
-            gcloud container clusters get-credentials "$GKE_CLUSTER" \
-              --region "$GOOGLE_COMPUTE_REGION" \
-              --project "$GOOGLE_PROJECT_ID"
+            gcloud container clusters get-credentials $GKE_CLUSTER \
+                --region $GOOGLE_COMPUTE_REGION \
+                --project $GOOGLE_PROJECT_ID
 
       - run:
           name: Deploy to GKE
           command: |
-            # If your manifest uses :latest, this will pick up the latest pushed image.
-            # If you later wire in SHA tags, you can sed the image here using $CIRCLE_SHA1.
             kubectl apply -f kubernetes-deployment.yaml --validate=false
             kubectl rollout restart deployment llmops-app
-            kubectl rollout status deployment llmops-app
 
-# ======================================================================
-# Workflows
-# ======================================================================
 workflows:
   version: 2
-
   deploy_pipeline:
     jobs:
-      - build_docker_image
+      - checkout_code
+      - build_docker_image:
+          requires:
+            - checkout_code
       - deploy_to_gke:
           requires:
             - build_docker_image
