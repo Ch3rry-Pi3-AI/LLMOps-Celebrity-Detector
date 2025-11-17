@@ -1,0 +1,47 @@
+# -----------------------------------------------------------------------------
+# Deployment: Runs the LLMOps application inside the Kubernetes cluster.
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llmops-app              # Name of the deployment
+spec:
+  replicas: 1                   # Number of pod replicas to run
+  selector:
+    matchLabels:
+      app: llmops-app           # Must match template labels below
+  template:
+    metadata:
+      labels:
+        app: llmops-app         # Pod label (used by the Service to find pods)
+    spec:
+      containers:
+      - name: llmops-app        # Container name inside the pod
+        image: us-central1-docker.pkg.dev/gen-lang-client-0729539659/llmops-repo/llmops-app:latest
+                                 # Container image pulled from Artifact Registry
+        ports:
+        - containerPort: 5000    # Flask application runs on port 5000
+        env:
+        - name: GROQ_API_KEY     # Inject API key from Kubernetes Secret
+          valueFrom:
+            secretKeyRef:
+              name: llmops-secrets   # Secret name in Kubernetes
+              key: GROQ_API_KEY      # Key inside the secret
+
+
+# -----------------------------------------------------------------------------
+# Service: Exposes the LLMOps application to the outside world.
+# -----------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llmops-service           # Name of the Service
+spec:
+  selector:
+    app: llmops-app              # Routes traffic to pods with this label
+  ports:
+    - protocol: TCP
+      port: 80                   # External port exposed by LoadBalancer
+      targetPort: 5000           # Internal port on the container
+  type: LoadBalancer             # Provides a public external IP
